@@ -1,0 +1,15 @@
+kind: MasterConfiguration
+api:
+  advertiseAddress: "{{ ansible_eth0.ipv4.address }}"
+apiVersion: kubeadm.k8s.io/v1alpha1
+networking:
+  dnsDomain: "{{ kubernetes_network.dns_domain }}"
+  podSubnet: "{{ kubernetes_network.pod_subnet }}"
+  serviceSubnet: "{{ kubernetes_network.service_subnet }}"
+controllerManagerExtraArgs:
+  horizontal-pod-autoscaler-use-rest-clients: "true"
+  horizontal-pod-autoscaler-sync-period: "10s"
+  node-monitor-grace-period: "10s"
+apiServerExtraArgs:
+  runtime-config: "api/all=true"
+kubernetesVersion: "latest-{{ kubernetes.version | regex_replace('^([0-9]{1,3}\.[0-9]{1,3}).*', '\\1') }}"

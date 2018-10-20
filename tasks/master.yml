@@ -1,0 +1,76 @@
+---
+- name: check if cluster is already configured
+  stat:
+    path: /var/lib/kubelet/config.yaml
+  register: _kubernetes_stat_kubelet_config
+
+- name: kubeadm-master | Copy init file for kubeadm
+  template:
+    src: kubeadm.yml
+    dest: /etc/kubernetes/kubeadm.yml
+    mode: 0755
+  when: not _kubernetes_stat_kubelet_config.stat.exists
+
+- name: kubeadm-master | Clean up /var/lib/kubelet/
+  file:
+    path: /var/lib/kubelet/pki
+    state: absent
+  when: not _kubernetes_stat_kubelet_config.stat.exists
+
+- name: kubeadm-master | Run kubeadm init on master
+  #command: kubeadm init --config /etc/kubernetes/kubeadm.yml
+  command: |
+    kubeadm init
+       --pod-network-cidr="{{ kubernetes_network.pod_subnet }}"
+       --apiserver-advertise-address="{{ ansible_eth0.ipv4.address }}"
+  register: _kubeadm_init
+  when: not _kubernetes_stat_kubelet_config.stat.exists
+
+- name: kubeadm-master | Install CNI plugin for {{ kubernetes_overlay_network }}
+  include_tasks: cni/{{ kubernetes_overlay_network }}.yml
+  when: not _kubernetes_stat_kubelet_config.stat.exists
+
+- name: kubeadm-master | Create a dedicated token from master
+  command: kubeadm token create --ttl 0 --groups system:bootstrappers:kubeadm:default-node-token --description "Bootstrap token which does not expire"
+  register: _kubeadm_gen_token
+
+- name: kubeadm-master | Copy token to local file 'kubernetes-token'
+  copy:
+    content: "{{ _kubeadm_gen_token.stdout }}"
+    dest: "{{ playbook_dir }}/run/kubeadm-token.txt"
+  delegate_to: localhost
+
+- name: kubeadm-master | Register token as fact
+  set_fact:
+    kubeadm_token: "{{ lookup('file', playbook_dir + '/run/kubeadm-token.txt') }}"
+
+- name: kubeadm-master | Copy Kubernetes access config to ~/.kube/config on nodes
+  copy:
+    remote_src: True
+    src: /etc/kubernetes/admin.conf
+    dest: /home/{{ kubernetes_user }}/.kube/config
+    owner: "{{ kubernetes_user }}"
+    group: users
+
+# - debug: var=kubeadm_init.stdout
+
+- name: kubeadm-master | Download cluster configuration
+  fetch:
+    src: "/etc/kubernetes/admin.conf"
+    dest: "{{ playbook_dir }}/run/"
+    flat: true
+
+- name: kubeadm-master | Ensure ~/.kube directory
+  file:
+    path: ~/.kube
+    state: directory
+
+#default kubectl location for cli client
+- name: kubeadm-master | Configure master for kubectl
+  command: cp /etc/kubernetes/admin.conf ~/.kube/config
+
+- name: kubeadm-master | Download cluster configuration
+  fetch:
+    src: "/etc/kubernetes/admin.conf"
+    dest: "{{ playbook_dir }}/run/"
+    flat: true

@@ -1,0 +1,14 @@
+---
+kubernetes_reset: false
+kubernetes_user: k8s
+kubernetes_overlay_network: flannel
+kubernetes_network:
+  dns_domain: cluster.local
+  pod_subnet: 10.244.0.0/16
+  service_subnet: 10.96.0.0/12
+kubernetes_images:
+  flannel: quay.io/coreos/flannel:v0.10.0
+  weave: docker.io/weaveworks/weave-kube:2.4.1
+  weave_npc: docker.io/weaveworks/weave-npc:2.4.1
+kubernetes:
+  version: 1.11.3*

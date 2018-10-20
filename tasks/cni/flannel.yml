@@ -1,0 +1,15 @@
+---
+- name: flannel | enable net.bridge.bridge-nf-call-iptables
+  sysctl:
+    name: net.bridge.bridge-nf-call-iptables
+    value: 1
+    sysctl_file: /etc/sysctl.d/90-kubernetes.conf
+    reload: yes
+
+- name: flannel | Create flannel resources
+  template: src=cni/flannel.yml dest=/etc/kubernetes/kube-flannel.yml
+
+- name: flannel | Create flannel resources
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  command: kubectl create -f /etc/kubernetes/kube-flannel.yml

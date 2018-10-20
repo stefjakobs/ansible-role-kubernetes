@@ -1,0 +1,26 @@
+---
+- name: Add and update packages
+  include_tasks: apt.yml
+
+- name: Create dir ~/.kube
+  file:
+    path: /home/{{ kubernetes_user }}/.kube
+    state: directory
+    owner: "{{ kubernetes_user }}"
+    group: users
+    mode: 0775
+
+- name: Create dir /etc/kubernetes/apps
+  file:
+    path: /etc/kubernetes/apps
+    state: directory
+    mode: 0775
+
+- name: Setup profile
+  template:
+    src: kubernetes_profile.sh
+    dest: /etc/profile.d/kubernetes.sh
+    mode: 0644
+
+- name: Install with kubeadm
+  include_tasks: kubeadm.yml
